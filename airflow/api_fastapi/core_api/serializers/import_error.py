@@ -16,10 +16,24 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.execution_api.routes.health import health_router
-from airflow.api_fastapi.execution_api.routes.task_instance import ti_router
+from datetime import datetime
 
-execution_api_router = AirflowRouter()
-execution_api_router.include_router(health_router)
-execution_api_router.include_router(ti_router)
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class ImportErrorResponse(BaseModel):
+    """Import Error Response."""
+
+    id: int = Field(alias="import_error_id")
+    timestamp: datetime
+    filename: str
+    stacktrace: str = Field(alias="stack_trace")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class ImportErrorCollectionResponse(BaseModel):
+    """Import Error Collection Response."""
+
+    import_errors: list[ImportErrorResponse]
+    total_entries: int

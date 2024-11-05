@@ -45,6 +45,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     Float,
+    ForeignKey,
     ForeignKeyConstraint,
     Index,
     Integer,
@@ -54,6 +55,7 @@ from sqlalchemy import (
     UniqueConstraint,
     and_,
     delete,
+    extract,
     false,
     func,
     inspect,
@@ -68,6 +70,7 @@ from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import lazyload, reconstructor, relationship
 from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
 from sqlalchemy.sql.expression import case, select
+from sqlalchemy_utils import UUIDType
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import InternalApiConfig, internal_api_call
@@ -151,7 +154,9 @@ if TYPE_CHECKING:
     from pathlib import PurePath
     from types import TracebackType
 
+    from sqlalchemy.engine import Connection as SAConnection, Engine
     from sqlalchemy.orm.session import Session
+    from sqlalchemy.sql import Update
     from sqlalchemy.sql.elements import BooleanClauseList
     from sqlalchemy.sql.expression import ColumnOperators
 
@@ -818,6 +823,7 @@ def _set_ti_attrs(target, source, include_dag_run=False):
     target.trigger_id = source.trigger_id
     target.next_method = source.next_method
     target.next_kwargs = source.next_kwargs
+    target.dag_version_id = source.dag_version_id
 
     if include_dag_run:
         target.execution_date = source.execution_date
@@ -836,7 +842,7 @@ def _set_ti_attrs(target, source, include_dag_run=False):
         target.dag_run.data_interval_start = source.dag_run.data_interval_start
         target.dag_run.data_interval_end = source.dag_run.data_interval_end
         target.dag_run.last_scheduling_decision = source.dag_run.last_scheduling_decision
-        target.dag_run.dag_hash = source.dag_run.dag_hash
+        target.dag_run.dag_version_id = source.dag_run.dag_version_id
         target.dag_run.updated_at = source.dag_run.updated_at
         target.dag_run.log_template_id = source.dag_run.log_template_id
 
@@ -1873,8 +1879,10 @@ class TaskInstance(Base, LoggingMixin):
     next_kwargs = Column(MutableDict.as_mutable(ExtendedJSON))
 
     _task_display_property_value = Column("task_display_name", String(2000), nullable=True)
+    dag_version_id = Column(UUIDType(binary=False), ForeignKey("dag_version.id", ondelete="CASCADE"))
+    dag_version = relationship("DagVersion", back_populates="task_instances")
     # If adding new fields here then remember to add them to
-    # refresh_from_db() or they won't display in the UI correctly
+    # _set_ti_attrs() or they won't display in the UI correctly
 
     __table_args__ = (
         Index("ti_dag_state", dag_id, state),
@@ -1939,11 +1947,13 @@ class TaskInstance(Base, LoggingMixin):
         run_id: str | None = None,
         state: str | None = None,
         map_index: int = -1,
+        dag_version_id: UUIDType | None = None,
     ):
         super().__init__()
         self.dag_id = task.dag_id
         self.task_id = task.task_id
         self.map_index = map_index
+        self.dag_version_id = dag_version_id
         self.refresh_from_task(task)
         if TYPE_CHECKING:
             assert self.task
@@ -1975,7 +1985,7 @@ class TaskInstance(Base, LoggingMixin):
         return _stats_tags(task_instance=self)
 
     @staticmethod
-    def insert_mapping(run_id: str, task: Operator, map_index: int) -> dict[str, Any]:
+    def insert_mapping(run_id: str, task: Operator, map_index: int, dag_version_id: int) -> dict[str, Any]:
         """
         Insert mapping.
 
@@ -2004,6 +2014,7 @@ class TaskInstance(Base, LoggingMixin):
             "custom_operator_name": getattr(task, "custom_operator_name", None),
             "map_index": map_index,
             "_task_display_property_value": task.task_display_name,
+            "dag_version_id": dag_version_id,
         }
 
     @reconstructor
@@ -3842,6 +3853,39 @@ class TaskInstance(Base, LoggingMixin):
                     table.map_index == self.map_index,
                 )
             )
+
+    @classmethod
+    def duration_expression_update(
+        cls, end_date: datetime, query: Update, bind: Engine | SAConnection
+    ) -> Update:
+        """Return a SQL expression for calculating the duration of this TI, based on the start and end date columns."""
+        # TODO: Compare it with self._set_duration method
+
+        if bind.dialect.name == "sqlite":
+            return query.values(
+                {
+                    "end_date": end_date,
+                    "duration": (func.julianday(end_date) - func.julianday(cls.start_date)) * 86400,
+                }
+            )
+        elif bind.dialect.name == "postgresql":
+            return query.values(
+                {
+                    "end_date": end_date,
+                    "duration": extract("EPOCH", end_date - cls.start_date),
+                }
+            )
+
+        return query.values(
+            {
+                "end_date": end_date,
+                "duration": (
+                    func.timestampdiff(text("MICROSECOND"), cls.start_date, end_date)
+                    # Turn microseconds into floating point seconds.
+                    / 1_000_000
+                ),
+            }
+        )
 
 
 def _find_common_ancestor_mapped_group(node1: Operator, node2: Operator) -> MappedTaskGroup | None:
