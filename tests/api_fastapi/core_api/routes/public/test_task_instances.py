@@ -465,3 +465,62 @@ class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
         assert response.json() == {
             "detail": "The Mapped Task Instance with dag_id: `example_python_operator`, run_id: `TEST_DAG_RUN_ID`, task_id: `print_the_context`, and map_index: `10` was not found"
         }
+
+
+class TestGetTaskInstanceTryDetails(TestTaskInstanceEndpoint):
+    def test_should_respond_200_get_task_instance_try_details(self, test_client, session):
+        self.create_task_instances(session, task_instances=[{"state": State.RUNNING, "try_number": 1}])
+        response = test_client.get(
+            "/public/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries/1"
+        )
+        assert response.status_code == 200
+
+        assert response.json() == {
+            "dag_id": "example_python_operator",
+            "duration": 10000.0,
+            "end_date": "2020-01-03T00:00:00Z",
+            "logical_date": "2020-01-01T00:00:00Z",
+            "executor": None,
+            "executor_config": "{}",
+            "hostname": "",
+            "map_index": -1,
+            "max_tries": 0,
+            "note": "placeholder-note",
+            "operator": "PythonOperator",
+            "pid": 100,
+            "pool": "default_pool",
+            "pool_slots": 1,
+            "priority_weight": 9,
+            "queue": "default_queue",
+            "queued_when": None,
+            "start_date": "2020-01-02T00:00:00Z",
+            "state": "running",
+            "task_id": "print_the_context",
+            "task_display_name": "print_the_context",
+            "try_number": 1,
+            "unixname": getuser(),
+            "dag_run_id": "TEST_DAG_RUN_ID",
+            "rendered_fields": {},
+            "rendered_map_index": None,
+            "trigger": None,
+            "triggerer_job": None,
+        }
+
+    def test_should_respond_404_wrong_task_instance_try_details(self, test_client, session):
+        self.create_task_instances(session)
+        response = test_client.get(
+            "/public/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries/1"
+        )
+        assert response.status_code == 404
+
+        assert response.json() == {
+            "detail": "The Task Instance with dag_id: `example_python_operator`, run_id: `TEST_DAG_RUN_ID`, task_id: `print_the_context` and try_number: `1` was not found"
+        }
+
+    def test_should_respond_404_mapped_task_instance_try_details(self, test_client, session):
+        self.create_task_instances(session, task_instances=[{"map_index": 0}])
+        response = test_client.get(
+            "/public/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries/0"
+        )
+        assert response.status_code == 404
+        assert response.json() == {"detail": "Task instance is mapped, add the map_index value to the URL"}
