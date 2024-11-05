@@ -143,20 +143,6 @@ class TestTaskInstanceEndpoint:
             session.commit()
         return tis
 
-        session.commit()
-        if with_ti_history:
-            for ti in tis:
-                ti.try_number = 1
-                session.merge(ti)
-            session.commit()
-            dag.clear()
-            for ti in tis:
-                ti.try_number = 2
-                ti.queue = "default_queue"
-                session.merge(ti)
-            session.commit()
-        return tis
-
 
 class TestGetTaskInstance(TestTaskInstanceEndpoint):
     def test_should_respond_200(self, test_client, session):
@@ -483,6 +469,7 @@ class TestGetTaskInstanceTryDetails(TestTaskInstanceEndpoint):
             "executor": None,
             "executor_config": "{}",
             "hostname": "",
+            "id": mock.ANY,
             "map_index": -1,
             "max_tries": 0,
             "note": "placeholder-note",
