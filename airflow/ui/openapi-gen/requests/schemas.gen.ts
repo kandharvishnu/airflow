@@ -313,18 +313,6 @@ export const $DAGDetailsResponse = {
       ],
       title: "Last Parsed Time",
     },
-    last_pickled: {
-      anyOf: [
-        {
-          type: "string",
-          format: "date-time",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Last Pickled",
-    },
     last_expired: {
       anyOf: [
         {
@@ -336,18 +324,6 @@ export const $DAGDetailsResponse = {
         },
       ],
       title: "Last Expired",
-    },
-    pickle_id: {
-      anyOf: [
-        {
-          type: "string",
-          format: "date-time",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Pickle Id",
     },
     default_view: {
       anyOf: [
@@ -631,9 +607,7 @@ export const $DAGDetailsResponse = {
     "is_paused",
     "is_active",
     "last_parsed_time",
-    "last_pickled",
     "last_expired",
-    "pickle_id",
     "default_view",
     "fileloc",
     "description",
@@ -712,18 +686,6 @@ export const $DAGResponse = {
       ],
       title: "Last Parsed Time",
     },
-    last_pickled: {
-      anyOf: [
-        {
-          type: "string",
-          format: "date-time",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Last Pickled",
-    },
     last_expired: {
       anyOf: [
         {
@@ -735,18 +697,6 @@ export const $DAGResponse = {
         },
       ],
       title: "Last Expired",
-    },
-    pickle_id: {
-      anyOf: [
-        {
-          type: "string",
-          format: "date-time",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Pickle Id",
     },
     default_view: {
       anyOf: [
@@ -899,9 +849,7 @@ export const $DAGResponse = {
     "is_paused",
     "is_active",
     "last_parsed_time",
-    "last_pickled",
     "last_expired",
-    "pickle_id",
     "default_view",
     "fileloc",
     "description",
@@ -1267,18 +1215,6 @@ export const $DAGWithLatestDagRunsResponse = {
       ],
       title: "Last Parsed Time",
     },
-    last_pickled: {
-      anyOf: [
-        {
-          type: "string",
-          format: "date-time",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Last Pickled",
-    },
     last_expired: {
       anyOf: [
         {
@@ -1290,18 +1226,6 @@ export const $DAGWithLatestDagRunsResponse = {
         },
       ],
       title: "Last Expired",
-    },
-    pickle_id: {
-      anyOf: [
-        {
-          type: "string",
-          format: "date-time",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Pickle Id",
     },
     default_view: {
       anyOf: [
@@ -1461,9 +1385,7 @@ export const $DAGWithLatestDagRunsResponse = {
     "is_paused",
     "is_active",
     "last_parsed_time",
-    "last_pickled",
     "last_expired",
-    "pickle_id",
     "default_view",
     "fileloc",
     "description",
@@ -1578,6 +1500,26 @@ export const $DagWarningType = {
 
 This is the set of allowable values for the \`\`warning_type\`\` field
 in the DagWarning model.`,
+} as const;
+
+export const $EventLogCollectionResponse = {
+  properties: {
+    event_logs: {
+      items: {
+        $ref: "#/components/schemas/EventLogResponse",
+      },
+      type: "array",
+      title: "Event Logs",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["event_logs", "total_entries"],
+  title: "EventLogCollectionResponse",
+  description: "Event Log Collection Response.",
 } as const;
 
 export const $EventLogResponse = {
