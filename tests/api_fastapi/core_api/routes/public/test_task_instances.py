@@ -455,7 +455,7 @@ class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
 
 class TestGetTaskInstanceTryDetails(TestTaskInstanceEndpoint):
     def test_should_respond_200_get_task_instance_try_details(self, test_client, session):
-        self.create_task_instances(session, task_instances=[{"state": State.RUNNING, "try_number": 1}])
+        self.create_task_instances(session, task_instances=[{"try_number": 1}])
         response = test_client.get(
             "/public/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries/1"
         )
@@ -501,13 +501,5 @@ class TestGetTaskInstanceTryDetails(TestTaskInstanceEndpoint):
         assert response.status_code == 404
 
         assert response.json() == {
-            "detail": "The Task Instance with dag_id: `example_python_operator`, run_id: `TEST_DAG_RUN_ID`, task_id: `print_the_context` and try_number: `1` was not found"
+            "detail": "The Task Instance with dag_id: `example_python_operator`, run_id: `TEST_DAG_RUN_ID`, task_id: `print_the_context`, try_number: `1` and map_index: `-1` was not found"
         }
-
-    def test_should_respond_404_mapped_task_instance_try_details(self, test_client, session):
-        self.create_task_instances(session, task_instances=[{"map_index": 0}])
-        response = test_client.get(
-            "/public/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries/0"
-        )
-        assert response.status_code == 404
-        assert response.json() == {"detail": "Task instance is mapped, add the map_index value to the URL"}

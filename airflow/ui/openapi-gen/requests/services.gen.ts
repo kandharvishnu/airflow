@@ -1242,6 +1242,7 @@ export class TaskInstanceService {
    * @param data.dagRunId
    * @param data.taskId
    * @param data.taskTryNumber
+   * @param data.mapIndex
    * @returns TaskInstanceResponse Successful Response
    * @throws ApiError
    */
@@ -1256,6 +1257,9 @@ export class TaskInstanceService {
         dag_run_id: data.dagRunId,
         task_id: data.taskId,
         task_try_number: data.taskTryNumber,
+      },
+      query: {
+        map_index: data.mapIndex,
       },
       errors: {
         401: "Unauthorized",

@@ -990,6 +990,7 @@ export type GetMappedTaskInstanceResponse = TaskInstanceResponse;
 export type GetTaskInstanceTryDetailsData = {
   dagId: string;
   dagRunId: string;
+  mapIndex?: number;
   taskId: string;
   taskTryNumber: number;
 };

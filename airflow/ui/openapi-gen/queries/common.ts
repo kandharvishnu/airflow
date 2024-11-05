@@ -640,18 +640,20 @@ export const UseTaskInstanceServiceGetTaskInstanceTryDetailsKeyFn = (
   {
     dagId,
     dagRunId,
+    mapIndex,
     taskId,
     taskTryNumber,
   }: {
     dagId: string;
     dagRunId: string;
+    mapIndex?: number;
     taskId: string;
     taskTryNumber: number;
   },
   queryKey?: Array<unknown>,
 ) => [
   useTaskInstanceServiceGetTaskInstanceTryDetailsKey,
-  ...(queryKey ?? [{ dagId, dagRunId, taskId, taskTryNumber }]),
+  ...(queryKey ?? [{ dagId, dagRunId, mapIndex, taskId, taskTryNumber }]),
 ];
 export type VariableServiceGetVariableDefaultResponse = Awaited<
   ReturnType<typeof VariableService.getVariable>

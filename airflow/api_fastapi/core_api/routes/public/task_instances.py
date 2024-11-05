@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from fastapi import Depends, HTTPException, status
+from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.sql import select
 from typing_extensions import Annotated
@@ -27,6 +28,7 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.serializers.task_instances import TaskInstanceResponse
 from airflow.models.taskinstance import TaskInstance as TI
+from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 
 task_instances_router = AirflowRouter(
     tags=["Task Instance"], prefix="/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances"
@@ -104,27 +106,31 @@ async def get_task_instance_try_details(
     task_id: str,
     task_try_number: int,
     session: Annotated[Session, Depends(get_session)],
+    map_index: int = -1,
 ) -> TaskInstanceResponse:
     """Get task instance details by try number."""
-    query = (
-        select(TI)
-        .where(
+
+    def _query(TI):
+        query = select(TI).where(
             TI.dag_id == dag_id,
             TI.run_id == dag_run_id,
             TI.task_id == task_id,
             TI.try_number == task_try_number,
+            TI.map_index == map_index,
         )
-        .join(TI.dag_run)
-        .options(joinedload(TI.rendered_task_instance_fields))
-    )
-    task_instance = session.scalar(query)
+        try:
+            task_instance = session.scalar(query)
+        except MultipleResultsFound:
+            raise HTTPException(
+                404,
+                f"Multiple Task Instances with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}` and try_number: `{task_try_number}` were found",
+            )
+        return task_instance
 
-    if task_instance is None:
+    result = _query(TI) or _query(TIH)
+    if result is None:
         raise HTTPException(
             404,
-            f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}` and try_number: `{task_try_number}` was not found",
+            f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}`, try_number: `{task_try_number}` and map_index: `{map_index}` was not found",
         )
-    if task_instance.map_index != -1:
-        raise HTTPException(404, "Task instance is mapped, add the map_index value to the URL")
-
-    return TaskInstanceResponse.model_validate(task_instance, from_attributes=True)
+    return TaskInstanceResponse.model_validate(result, from_attributes=True)
